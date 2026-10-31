@@ -6,11 +6,14 @@ import numpy as np
 import torch
 import laion_clap
 
-INDEX = "/data/clap-index.csv"
-EMBED_DIR = "/embeddings"
-CACHE = "/models/embedding-index.npz"
+DATA_DIR = os.environ.get("PARSEC_SEARCH_DATA_DIR", "/data")
+MODEL_DIR = os.environ.get("PARSEC_SEARCH_MODEL_DIR", "/models")
+INDEX = os.environ.get("PARSEC_SEARCH_SOURCE_INDEX", "/data/clap-index.csv")
+EMBED_DIR = os.environ.get("PARSEC_SEARCH_EMBEDDINGS_DIR", "/embeddings")
+CACHE = os.path.join(DATA_DIR, "embedding-index.npz")
+CHECKPOINT = os.path.join(MODEL_DIR, "630k-audioset-best.pt")
 if len(sys.argv) < 2:
-    raise SystemExit('Usage: python /search.py "describe the music"')
+    raise SystemExit('Usage: python search-cli.py "describe the music"')
 query = " ".join(sys.argv[1:]).strip()
 if not query:
     raise SystemExit("Query is empty")
@@ -65,12 +68,13 @@ if vectors is None:
     if not rows_vec:
         raise RuntimeError("No usable embeddings found")
     vectors = np.stack(rows_vec).astype(np.float32)
+    os.makedirs(DATA_DIR, exist_ok=True)
     np.savez_compressed(CACHE, vectors=vectors, paths=np.asarray(paths), ids=np.asarray(ids), index_mtime=np.float64(index_mtime))
     print("Cached %d vectors; missing embedding files: %d" % (len(paths), missing), flush=True)
 
 print("Loading CLAP model...", flush=True)
 model = laion_clap.CLAP_Module(enable_fusion=False, device="cuda" if torch.cuda.is_available() else "cpu")
-model.load_ckpt(ckpt="/models/630k-audioset-best.pt", verbose=False)
+model.load_ckpt(ckpt=CHECKPOINT, verbose=False)
 print("Model ready in %.1f s; device=%s" % (time.time() - t0, "cuda" if torch.cuda.is_available() else "cpu"), flush=True)
 
 q = np.asarray(model.get_text_embedding([query], use_tensor=False), dtype=np.float32).reshape(-1)

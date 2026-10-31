@@ -7,11 +7,18 @@ import numpy as np
 import torch
 import laion_clap
 
-CACHE = "/models/embedding-index.npz"
-CHECKPOINT = "/models/630k-audioset-best.pt"
-PORT = 8000
+DATA_DIR = os.environ.get("PARSEC_SEARCH_DATA_DIR", "/data")
+MODEL_DIR = os.environ.get("PARSEC_SEARCH_MODEL_DIR", "/models")
+CACHE = os.path.join(DATA_DIR, "embedding-index.npz")
+CHECKPOINT = os.path.join(MODEL_DIR, "630k-audioset-best.pt")
+PORT = int(os.environ.get("PARSEC_SEARCH_PORT", "8000"))
 
-print("Loading cached music vectors...", flush=True)
+if not os.path.isfile(CACHE):
+    raise FileNotFoundError("Search index not found: %s (set PARSEC_SEARCH_DATA_DIR to the directory containing embedding-index.npz)" % CACHE)
+if not os.path.isfile(CHECKPOINT):
+    raise FileNotFoundError("CLAP checkpoint not found: %s (set PARSEC_SEARCH_MODEL_DIR to the model directory)" % CHECKPOINT)
+
+print("Loading cached music vectors from %s..." % CACHE, flush=True)
 saved = np.load(CACHE, allow_pickle=False)
 VECTORS = saved["vectors"]
 PATHS = saved["paths"].tolist()
@@ -63,7 +70,7 @@ button:disabled{opacity:.6;cursor:wait}
 </div>
 <div id="status" role="status"></div>
 <div id="results"></div>
-<p class="note">Runs locally on this PC. Similarity scores are ranking hints, not percentages or probabilities.</p>
+<p class="note">Searches your indexed music collection. Similarity scores are ranking hints, not percentages or probabilities.</p>
 </main>
 <script>
 const form=document.getElementById('form'), input=document.getElementById('query'), go=document.getElementById('go'), status=document.getElementById('status'), results=document.getElementById('results');

@@ -8,7 +8,7 @@ AI-powered semantic music search service used by `parsec-media-gateway`.
 - Search API: `POST /search`
 - Readiness endpoint: `GET /health`
 - Natural-language query embeddings with LAION-CLAP and cosine-similarity ranking.
-- Command-line search implementation in `search-cli.py`.
+- Command-line index builder and search implementation in `search-cli.py`.
 
 ## API
 
@@ -30,45 +30,68 @@ The response remains compatible with the gateway integration:
 }
 ~~~
 
-## Runtime data
+## Runtime data and Docker volumes
 
-The repository contains application code and deployment configuration only. Large/generated runtime assets remain outside Git:
+The repository contains application code and deployment configuration only. Runtime data is stored on the Docker host and mounted into the container:
 
-- `C:\\music-ai\\model-cache\\embedding-index.npz`
-- `C:\\music-ai\\model-cache\\630k-audioset-best.pt`
-- `C:\\music-ai\\model-cache\\huggingface\\`
+| Container path | Purpose | Windows development default | Linux/vServer example |
+|---|---|---|---|
+| `/data` | `embedding-index.npz` | `C:\music-ai\search-data` | `/opt/parsec-search/data` |
+| `/models` | CLAP checkpoint and Hugging Face cache | `C:\music-ai\model-cache` | `/opt/parsec-search/models` |
 
-Compose mounts `C:\\music-ai\\model-cache` at `/models`. The embedding index stores relative music-library paths; those paths are returned unchanged by the API. Music files and embeddings are not copied into this repository.
+The server reads the index from `/data/embedding-index.npz` and the CLAP checkpoint from `/models/630k-audioset-best.pt`. Both paths can be overridden with `PARSEC_SEARCH_DATA_DIR` and `PARSEC_SEARCH_MODEL_DIR` inside the container.
 
-## Docker Compose deployment
+The host directories are configured through `PARSEC_SEARCH_DATA_PATH` and `PARSEC_SEARCH_MODEL_PATH`. Windows development uses the defaults in `compose.yaml`. On the vServer, copy `.env.example` to `.env` and adjust the two Linux paths. The `.env` file is intentionally excluded from Git.
 
-Start from this repository:
+Replacing the Docker image or container does not modify either host directory. The search index therefore survives code changes, image rebuilds, container removal and recreation.
 
-~~~powershell
-.\start-parsec-search.cmd
+## GPU and CPU deployment
+
+The base `compose.yaml` does not request a GPU and is suitable for a CPU-only host such as the vServer:
+
+~~~bash
+docker compose up -d --build
 ~~~
 
-Stop:
+Windows development starts the GPU-enabled variant through:
 
 ~~~powershell
-.\stop-parsec-search.cmd
+.\\start-parsec-search.cmd
 ~~~
 
-Compose builds the image `parsec-search:latest`, creates the container `parsec-search`, and joins the external Docker network `music-ai-network`.
+This adds `compose.gpu.yaml`, which requests all available GPUs. Both variants use the same image, application code, API and persistent data layout. PyTorch selects CUDA when available and otherwise uses the CPU.
+
+Stop the Windows development deployment:
+
+~~~powershell
+.\\stop-parsec-search.cmd
+~~~
+
+## Index update procedure
+
+The index is a generated artifact. To replace it on the vServer:
+
+1. Stop `parsec-search`.
+2. Upload the new `embedding-index.npz` to the host data directory.
+3. Replace `/opt/parsec-search/data/embedding-index.npz` and verify the file.
+4. Start the service again and check `GET /health`.
+
+The index is not stored in the image or in the Git repository. No index backup is maintained by this service.
+
+## Endpoints
 
 - Container endpoint for the gateway: `http://parsec-search:8000`
 - Local browser endpoint: `http://127.0.0.1:8765`
 - Container port: `8000`
 - Host port: `8765` (bound to loopback only)
 
-The NVIDIA GPU is made available to the container. The CLAP model and vector cache are mounted from the external runtime directory; they are never stored in Git.
+## CLI index builder
 
-## Local Python
+`search-cli.py` can rebuild the cached vector index from the worker's CSV and individual embedding files. Its paths are configurable with:
 
-For a non-Docker environment, install dependencies with:
+- `PARSEC_SEARCH_SOURCE_INDEX` (default `/data/clap-index.csv`)
+- `PARSEC_SEARCH_EMBEDDINGS_DIR` (default `/embeddings`)
+- `PARSEC_SEARCH_DATA_DIR` (output directory for `embedding-index.npz`)
+- `PARSEC_SEARCH_MODEL_DIR` (CLAP checkpoint directory)
 
-~~~powershell
-python -m pip install -r requirements.txt
-~~~
-
-`search-cli.py` currently expects data paths configured at the top of the script (`/data`, `/embeddings`, `/models`), matching its Linux-container execution environment.
+The worker's source CSV and individual embeddings are not required by the running search server once `embedding-index.npz` has been generated and transferred.

@@ -1,4 +1,4 @@
 @echo off
 pushd "%~dp0"
-docker compose down
+docker compose -f compose.yaml -f compose.gpu.yaml down
 popd

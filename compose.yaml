@@ -1,4 +1,4 @@
-﻿name: parsec-search
+name: parsec-search
 
 services:
   parsec-search:
@@ -7,11 +7,14 @@ services:
       context: .
     container_name: parsec-search
     restart: unless-stopped
-    gpus: all
     ports:
       - "127.0.0.1:8765:8000"
+    environment:
+      PARSEC_SEARCH_DATA_DIR: /data
+      PARSEC_SEARCH_MODEL_DIR: /models
     volumes:
-      - "C:/music-ai/model-cache:/models"
+      - "${PARSEC_SEARCH_DATA_PATH:-C:/music-ai/search-data}:/data"
+      - "${PARSEC_SEARCH_MODEL_PATH:-C:/music-ai/model-cache}:/models"
     networks:
       - music-ai-network
 
