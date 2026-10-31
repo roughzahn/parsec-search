@@ -1,18 +1,18 @@
 # parsec-search
 
-AI-powered semantic music search service used by parsec-media-gateway.
+AI-powered semantic music search service used by `parsec-media-gateway`.
 
 ## Responsibilities
 
-- Browser UI: GET /
-- Search API: POST /search
-- Readiness endpoint: GET /health
+- Browser UI: `GET /`
+- Search API: `POST /search`
+- Readiness endpoint: `GET /health`
 - Natural-language query embeddings with LAION-CLAP and cosine-similarity ranking.
-- Command-line search implementation in clap-search.py.
+- Command-line search implementation in `search-cli.py`.
 
 ## API
 
-POST /search accepts JSON:
+`POST /search` accepts JSON:
 
 ~~~json
 {"query":"dark electronic music with heavy bass"}
@@ -32,25 +32,36 @@ The response remains compatible with the gateway integration:
 
 ## Runtime data
 
-This repository contains application code only. Large/generated runtime assets remain outside Git in C:\\music-ai:
+The repository contains application code and deployment configuration only. Large/generated runtime assets remain outside Git:
 
-- C:\\music-ai\\model-cache\\embedding-index.npz
-- C:\\music-ai\\model-cache\\630k-audioset-best.pt
-- C:\\music-ai\\model-cache\\huggingface\\
+- `C:\\music-ai\\model-cache\\embedding-index.npz`
+- `C:\\music-ai\\model-cache\\630k-audioset-best.pt`
+- `C:\\music-ai\\model-cache\\huggingface\\`
 
-The Docker container mounts C:\\music-ai\\model-cache at /models. The embedding index stores relative music-library paths; those paths are returned unchanged by the API. Music files and embeddings are not copied into this repository.
+Compose mounts `C:\\music-ai\\model-cache` at `/models`. The embedding index stores relative music-library paths; those paths are returned unchanged by the API. Music files and embeddings are not copied into this repository.
 
-## Docker
+## Docker Compose deployment
 
-Build from this repository root:
+Start from this repository:
 
 ~~~powershell
-docker build -t music-ai-search:latest .
+.\start-parsec-search.cmd
 ~~~
 
-The image listens on container port 8000. The gateway reaches it on the shared Docker network as http://music-ai-search:8000; the local browser endpoint is normally http://127.0.0.1:8765.
+Stop:
 
-The model and vector cache must be mounted at /models when creating the container. Do not add model files, generated indexes, embeddings, or music files to Git.
+~~~powershell
+.\stop-parsec-search.cmd
+~~~
+
+Compose builds the image `parsec-search:latest`, creates the container `parsec-search`, and joins the external Docker network `music-ai-network`.
+
+- Container endpoint for the gateway: `http://parsec-search:8000`
+- Local browser endpoint: `http://127.0.0.1:8765`
+- Container port: `8000`
+- Host port: `8765` (bound to loopback only)
+
+The NVIDIA GPU is made available to the container. The CLAP model and vector cache are mounted from the external runtime directory; they are never stored in Git.
 
 ## Local Python
 
@@ -60,4 +71,4 @@ For a non-Docker environment, install dependencies with:
 python -m pip install -r requirements.txt
 ~~~
 
-The CLI script currently expects data paths configured at the top of clap-search.py (/data, /embeddings, /models), matching its Linux-container execution environment.
+`search-cli.py` currently expects data paths configured at the top of the script (`/data`, `/embeddings`, `/models`), matching its Linux-container execution environment.

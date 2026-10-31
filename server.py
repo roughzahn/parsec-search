@@ -30,7 +30,7 @@ PAGE = r"""<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Local Music AI Search</title>
+<title>parsec-search</title>
 <style>
 :root{color-scheme:dark}
 body{font:16px/1.5 system-ui,Segoe UI,sans-serif;background:#101318;color:#edf0f6;margin:0}
@@ -53,7 +53,7 @@ button:disabled{opacity:.6;cursor:wait}
 </style>
 </head>
 <body><main>
-<h1>Local Music AI Search</h1>
+<h1>parsec-search</h1>
 <p class="sub">Search your existing music by sound, style, mood or instrumentation. The music files are not changed.</p>
 <form id="form"><input id="query" maxlength="500" placeholder="e.g. dark electronic music with heavy bass" required><button id="go" type="submit">Search</button></form>
 <div class="examples">

@@ -1,0 +1,20 @@
+﻿name: parsec-search
+
+services:
+  parsec-search:
+    image: parsec-search:latest
+    build:
+      context: .
+    container_name: parsec-search
+    restart: unless-stopped
+    gpus: all
+    ports:
+      - "127.0.0.1:8765:8000"
+    volumes:
+      - "C:/music-ai/model-cache:/models"
+    networks:
+      - music-ai-network
+
+networks:
+  music-ai-network:
+    external: true
