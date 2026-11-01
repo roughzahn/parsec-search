@@ -30,6 +30,12 @@ The response remains compatible with the gateway integration:
 }
 ~~~
 
+## Browser playback
+
+The browser UI uses the public Parsec Media Gateway API for searches and playback. Search results contain opaque track IDs; the UI requests a short-lived stream ticket before playing a track in the built-in audio player. The browser never receives NAS filesystem paths.
+
+The gateway address is configured with `PARSEC_GATEWAY_BASE_URL` (Windows development default: `http://127.0.0.1:8766`). The gateway must allow the UI origin through `PARSEC_SEARCH_UI_ORIGINS` (default: `http://127.0.0.1:8765,http://localhost:8765`).
+
 ## Runtime data and Docker volumes
 
 The repository contains application code and deployment configuration only. Runtime data is stored on the Docker host and mounted into the container:

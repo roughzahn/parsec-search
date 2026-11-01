@@ -12,6 +12,7 @@ services:
     environment:
       PARSEC_SEARCH_DATA_DIR: /data
       PARSEC_SEARCH_MODEL_DIR: /models
+      PARSEC_GATEWAY_BASE_URL: ${PARSEC_GATEWAY_BASE_URL:-http://127.0.0.1:8766}
     volumes:
       - "${PARSEC_SEARCH_DATA_PATH:-C:/music-ai/search-data}:/data"
       - "${PARSEC_SEARCH_MODEL_PATH:-C:/music-ai/model-cache}:/models"
