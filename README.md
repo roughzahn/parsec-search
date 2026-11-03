@@ -101,3 +101,12 @@ The index is not stored in the image or in the Git repository. No index backup i
 - `PARSEC_SEARCH_MODEL_DIR` (CLAP checkpoint directory)
 
 The worker's source CSV and individual embeddings are not required by the running search server once `embedding-index.npz` has been generated and transferred.
+
+
+## Quality checks and releases
+
+Pull requests and pushes run the GitHub Actions workflow in `.github/workflows/ci.yml`. It compiles the Python application and runs the lightweight unit tests without downloading the CLAP model.
+
+Stable releases are created manually from the GitHub Actions tab using `Release`. Select a semantic version without the leading `v` (for example, `1.0.0`). The workflow only accepts the `main` branch, reruns CI checks, builds and publishes the Docker image to GHCR, and creates the corresponding GitHub Release. It publishes an immutable version tag (for example, `ghcr.io/roughzahn/parsec-search:1.0.0`) plus a convenience `stable` tag. Production deployments should pin the explicit version, never `stable` or `latest`.
+
+The production deployment should set `PARSEC_SEARCH_UI_ENABLED=false`. This makes `GET /` return 404; the browser test UI remains enabled by default for local development.
