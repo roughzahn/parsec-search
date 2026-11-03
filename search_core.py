@@ -5,10 +5,16 @@ import numpy as np
 
 
 def ui_enabled(value: str | None) -> bool:
-    """Interpret the UI feature flag; unset/unknown values remain enabled for dev safety."""
+    """Interpret the UI feature flag and reject ambiguous configuration."""
     if value is None:
         return True
-    return value.strip().lower() not in {"0", "false", "no", "off", "disabled"}
+
+    normalized = value.strip().lower()
+    if normalized in {"1", "true", "yes", "on", "enabled"}:
+        return True
+    if normalized in {"0", "false", "no", "off", "disabled"}:
+        return False
+    raise ValueError("PARSEC_SEARCH_UI_ENABLED must be a boolean value")
 
 
 def rank_vectors(vectors: np.ndarray, query_embedding: np.ndarray, limit: int = 10) -> list[tuple[int, float]]:
