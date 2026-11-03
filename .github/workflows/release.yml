@@ -3,10 +3,14 @@ name: Release
 on:
   workflow_dispatch:
     inputs:
-      version:
-        description: "Semantic version without a leading v (for example 1.0.0)"
+      bump:
+        description: "Which part of the latest semantic version should be incremented?"
         required: true
-        type: string
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
 
 permissions:
   contents: write
@@ -21,22 +25,65 @@ jobs:
     name: Publish stable release
     runs-on: ubuntu-latest
     steps:
-      - name: Check out source
+      - name: Check out source and release tags
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Require main branch and validate version
+      - name: Require main branch and calculate next version
+        id: version
         env:
-          VERSION: ${{ inputs.version }}
+          BUMP: ${{ inputs.bump }}
+        shell: bash
         run: |
           set -euo pipefail
           if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
             echo "Releases may only be created from main."
             exit 1
           fi
-          if [[ ! "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
-            echo "Version must be semantic X.Y.Z without leading zeroes or a leading v."
+
+          LATEST_TAG="$(git tag --list 'v[0-9]*' --sort=-v:refname | grep -E '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' | head -n 1 || true)"
+          if [[ -z "$LATEST_TAG" ]]; then
+            CURRENT_VERSION="0.0.0"
+          else
+            CURRENT_VERSION="${LATEST_TAG#v}"
+          fi
+
+          if [[ ! "$CURRENT_VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "Latest release tag '$LATEST_TAG' is not a valid stable semantic version."
             exit 1
           fi
+
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+          case "$BUMP" in
+            major)
+              MAJOR=$((MAJOR + 1))
+              MINOR=0
+              PATCH=0
+              ;;
+            minor)
+              MINOR=$((MINOR + 1))
+              PATCH=0
+              ;;
+            patch)
+              PATCH=$((PATCH + 1))
+              ;;
+            *)
+              echo "Unsupported version increment: $BUMP"
+              exit 1
+              ;;
+          esac
+
+          VERSION="$MAJOR.$MINOR.$PATCH"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Release version"
+            echo
+            echo "- Previous version: $CURRENT_VERSION"
+            echo "- Increment: $BUMP"
+            echo "- New version: $VERSION"
+          } >> "$GITHUB_STEP_SUMMARY"
+
           if git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" >/dev/null 2>&1; then
             echo "Git tag v$VERSION already exists."
             exit 1
@@ -59,7 +106,7 @@ jobs:
       - name: Ensure release does not already exist
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ inputs.version }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
           if gh release view "v$VERSION" >/dev/null 2>&1; then
             echo "Release v$VERSION already exists."
@@ -81,15 +128,15 @@ jobs:
         with:
           context: .
           push: true
-          tags: ghcr.io/${{ github.repository }}:${{ inputs.version }}
+          tags: ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
-            org.opencontainers.image.version=${{ inputs.version }}
+            org.opencontainers.image.version=${{ steps.version.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ inputs.version }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: gh release create "v$VERSION" --target "$GITHUB_SHA" --title "parsec-search v$VERSION" --generate-notes
