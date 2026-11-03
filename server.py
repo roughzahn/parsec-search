@@ -8,11 +8,14 @@ import numpy as np
 import torch
 import laion_clap
 
+from search_core import rank_vectors, ui_enabled
+
 DATA_DIR = os.environ.get("PARSEC_SEARCH_DATA_DIR", "/data")
 MODEL_DIR = os.environ.get("PARSEC_SEARCH_MODEL_DIR", "/models")
 CACHE = os.path.join(DATA_DIR, "embedding-index.npz")
 CHECKPOINT = os.path.join(MODEL_DIR, "630k-audioset-best.pt")
 PORT = int(os.environ.get("PARSEC_SEARCH_PORT", "8000"))
+UI_ENABLED = ui_enabled(os.environ.get("PARSEC_SEARCH_UI_ENABLED", "true"))
 GATEWAY_BASE_URL = os.environ.get("PARSEC_GATEWAY_BASE_URL", "http://127.0.0.1:8766").rstrip("/")
 
 if not os.path.isfile(CACHE):
@@ -32,7 +35,7 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 print("Loading CLAP model on %s..." % DEVICE, flush=True)
 MODEL = laion_clap.CLAP_Module(enable_fusion=False, device=DEVICE)
 MODEL.load_ckpt(ckpt=CHECKPOINT, verbose=False)
-print("MODEL READY. Open http://127.0.0.1:8765", flush=True)
+print("MODEL READY. Browser UI: %s" % ("enabled" if UI_ENABLED else "disabled"), flush=True)
 
 PAGE = r"""<!doctype html>
 <html lang="en">
@@ -141,10 +144,18 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         path = urlparse(self.path).path
         if path == "/":
+            if not UI_ENABLED:
+                self._send(404, "Not found", "text/plain; charset=utf-8")
+                return
             page = PAGE.replace("__GATEWAY_BASE_URL_JSON__", json.dumps(GATEWAY_BASE_URL))
             self._send(200, page, "text/html; charset=utf-8")
         elif path == "/health":
-            self._send(200, json.dumps({"ready": True, "vectors": len(PATHS), "device": DEVICE}), "application/json")
+            self._send(200, json.dumps({
+                "ready": True,
+                "vectors": len(PATHS),
+                "device": DEVICE,
+                "ui_enabled": UI_ENABLED
+            }), "application/json")
         else:
             self._send(404, "Not found", "text/plain; charset=utf-8")
 
@@ -162,14 +173,9 @@ class Handler(BaseHTTPRequestHandler):
                 raise ValueError("Enter a query between 1 and 500 characters")
             started = time.time()
             q = np.asarray(MODEL.get_text_embedding([query], use_tensor=False), dtype=np.float32).reshape(-1)
-            norm = np.linalg.norm(q)
-            if norm == 0:
-                raise ValueError("The model returned an empty vector")
-            q /= norm
-            scores = VECTORS @ q
-            top = np.argsort(scores)[-10:][::-1]
-            matches = [{"rank": n + 1, "score": float(scores[int(i)]), "path": PATHS[int(i)]}
-                       for n, i in enumerate(top)]
+            ranked = rank_vectors(VECTORS, q, limit=10)
+            matches = [{"rank": rank, "score": score, "path": PATHS[index]}
+                       for rank, (index, score) in enumerate(ranked, 1)]
             result = {"query": query, "seconds": round(time.time() - started, 2), "results": matches}
             self._send(200, json.dumps(result, ensure_ascii=True), "application/json; charset=utf-8")
         except Exception as exc:
