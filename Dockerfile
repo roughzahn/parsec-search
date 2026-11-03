@@ -5,12 +5,14 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && pip install --no-cache-dir laion-clap
 
+LABEL org.opencontainers.image.source="https://github.com/roughzahn/parsec-search"
+
 WORKDIR /search
 COPY server.py search_core.py /search/
 
 ENV HF_HOME=/models/huggingface \
     PYTHONUNBUFFERED=1 \
-    PARSEC_SEARCH_UI_ENABLED=true
+    PARSEC_SEARCH_UI_ENABLED=false
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=180s --retries=3 \
