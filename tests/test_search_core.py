@@ -10,10 +10,21 @@ class UiEnabledTests(unittest.TestCase):
         self.assertTrue(ui_enabled(None))
         self.assertTrue(ui_enabled("true"))
 
+    def test_true_values_enable_ui(self):
+        for value in ("true", "TRUE", "1", "yes", "on", "enabled"):
+            with self.subTest(value=value):
+                self.assertTrue(ui_enabled(value))
+
     def test_false_values_disable_ui(self):
         for value in ("false", "FALSE", "0", "no", "off", "disabled"):
             with self.subTest(value=value):
                 self.assertFalse(ui_enabled(value))
+
+    def test_unknown_values_are_rejected(self):
+        for value in ("", "maybe", "treu"):
+            with self.subTest(value=value):
+                with self.assertRaisesRegex(ValueError, "must be a boolean"):
+                    ui_enabled(value)
 
 
 class RankVectorsTests(unittest.TestCase):
