@@ -77,15 +77,16 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and publish versioned image
-        env:
-          VERSION: ${{ inputs.version }}
-          IMAGE: ghcr.io/${{ github.repository }}
-        run: |
-          docker buildx build --push \
-            --tag "$IMAGE:$VERSION" \
-            --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
-            --label "org.opencontainers.image.version=$VERSION" \
-            .
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/${{ github.repository }}:${{ inputs.version }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.version=${{ inputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Create GitHub Release
         env:
