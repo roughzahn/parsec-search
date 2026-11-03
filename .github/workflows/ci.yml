@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: ["**"]
+    branches: ["main"]
   pull_request:
     branches: ["main"]
   workflow_dispatch:
@@ -35,3 +35,12 @@ jobs:
         run: python -m compileall -q server.py search-cli.py search_core.py tests
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: parsec-search:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
