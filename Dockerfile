@@ -2,12 +2,14 @@ FROM pytorch/pytorch:2.7.1-cuda12.8-cudnn9-runtime
 
 RUN apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata \
-    && rm -rf /var/lib/apt/lists/* \
-    && pip install --no-cache-dir laion-clap
+    && rm -rf /var/lib/apt/lists/*
 
 LABEL org.opencontainers.image.source="https://github.com/roughzahn/parsec-search"
 
 WORKDIR /search
+COPY requirements.txt /search/requirements.txt
+RUN pip install --no-cache-dir -r /search/requirements.txt
+
 COPY server.py search_core.py /search/
 
 ENV HF_HOME=/models/huggingface \
