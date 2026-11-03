@@ -1,4 +1,4 @@
-# Python dependencies for local CLI execution.
-# The Docker image uses the matching PyTorch CUDA runtime base image.
+# Python dependencies for local CLI execution and the search service.
+# The Docker image supplies PyTorch from its matching CUDA runtime base image.
 laion-clap==1.1.7
-numpy<2
+numpy==1.26.4
