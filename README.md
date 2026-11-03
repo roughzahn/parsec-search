@@ -105,7 +105,7 @@ The worker's source CSV and individual embeddings are not required by the runnin
 
 ## Quality checks and releases
 
-Pull requests and pushes run the GitHub Actions workflow in `.github/workflows/ci.yml`. It validates the Docker build definition, compiles the Python application and runs the lightweight unit tests without downloading the CLAP model.
+Pull requests and pushes run the GitHub Actions workflow in `.github/workflows/ci.yml`. It validates the Docker build definition, compiles the Python application, runs the lightweight unit tests without downloading the CLAP model, and builds the complete Docker image.
 
 Stable releases are created manually from the GitHub Actions tab using `Release`. Select a semantic version without the leading `v` (for example, `1.0.0`). The workflow only accepts the `main` branch, repeats Python compilation and unit tests, builds and publishes the Docker image to GHCR, and creates the corresponding GitHub Release. It publishes an immutable version tag (for example, `ghcr.io/roughzahn/parsec-search:1.0.0`) using only the explicit version tag. No mutable `latest` or `stable` tag is published; deployments must pin the exact version.
 
