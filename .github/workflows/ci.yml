@@ -17,6 +17,9 @@ concurrency:
 jobs:
   test:
     name: Python checks
+    # PRs, manual runs and direct pushes still run the full CI.
+    # A regular GitHub merge commit was already tested by its PR workflow.
+    if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'Merge pull request')
     runs-on: ubuntu-latest
     steps:
       - name: Check out source
