@@ -101,3 +101,10 @@ The SQLite database is not stored in the image or in the Git repository. No data
 - `PARSEC_SEARCH_MODEL_DIR` (CLAP checkpoint directory)
 
 This remains a legacy offline tool. Its NPZ output is imported only into a new, empty SQLite database; it does not update an existing live database.
+## Quality checks and releases
+
+Pull requests run the GitHub Actions workflow in `.github/workflows/ci.yml`. It validates the Docker build definition, compiles the Python application, runs unit tests without downloading the CLAP model, and builds the complete Docker image.
+
+Stable releases are created manually from the GitHub Actions tab using `Release`. Choose `major`, `minor` or `patch`; the workflow calculates the next semantic version and publishes an immutable version tag to GHCR. Deployments must pin the exact version; no mutable `latest` or `stable` tag is published.
+
+The Docker image disables the browser UI by default (`PARSEC_SEARCH_UI_ENABLED=false`). The local `compose.yaml` enables it for Windows development; production deployments should keep it disabled. With the UI disabled, `GET /` returns 404 while `/search` and `/health` remain available.

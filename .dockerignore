@@ -1,0 +1,17 @@
+.git
+.github
+.idea
+__pycache__
+*.py[cod]
+.venv
+venv
+.env
+.env.*
+!.env.example
+models
+embeddings
+clap-embeddings
+*.npy
+*.npz
+*.pt
+*.pth

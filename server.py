@@ -10,6 +10,7 @@ import torch
 import laion_clap
 
 from embedding_store import EmbeddingStore
+from search_core import rank_vectors, ui_enabled
 
 DATA_DIR = os.environ.get("PARSEC_SEARCH_DATA_DIR", "/data")
 MODEL_DIR = os.environ.get("PARSEC_SEARCH_MODEL_DIR", "/models")
@@ -17,6 +18,7 @@ LEGACY_CACHE = os.path.join(DATA_DIR, "embedding-index.npz")
 DATABASE = os.path.join(DATA_DIR, "embeddings.db")
 CHECKPOINT = os.path.join(MODEL_DIR, "630k-audioset-best.pt")
 PORT = int(os.environ.get("PARSEC_SEARCH_PORT", "8000"))
+UI_ENABLED = ui_enabled(os.environ.get("PARSEC_SEARCH_UI_ENABLED", "true"))
 GATEWAY_BASE_URL = os.environ.get("PARSEC_GATEWAY_BASE_URL", "http://127.0.0.1:8766").rstrip("/")
 INTERNAL_TOKEN = os.environ.get("PARSEC_SEARCH_INTERNAL_TOKEN", "").strip()
 EMBEDDING_MODEL_ID = os.environ.get("PARSEC_SEARCH_EMBEDDING_MODEL_ID", "laion-clap-630k-audioset-v1")
@@ -34,7 +36,7 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 print("Loading CLAP model on %s..." % DEVICE, flush=True)
 MODEL = laion_clap.CLAP_Module(enable_fusion=False, device=DEVICE)
 MODEL.load_ckpt(ckpt=CHECKPOINT, verbose=False)
-print("MODEL READY. Open http://127.0.0.1:8765", flush=True)
+print("MODEL READY. Browser UI: %s" % ("enabled" if UI_ENABLED else "disabled"), flush=True)
 PAGE = r"""<!doctype html>
 <html lang="en">
 <head>
@@ -142,13 +144,19 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         path = urlparse(self.path).path
         if path == "/":
+            if not UI_ENABLED:
+                self._send(404, "Not found", "text/plain; charset=utf-8")
+                return
             page = PAGE.replace("__GATEWAY_BASE_URL_JSON__", json.dumps(GATEWAY_BASE_URL))
             self._send(200, page, "text/html; charset=utf-8")
         elif path == "/health":
             count = STORE.count(EMBEDDING_MODEL_ID, EMBEDDING_VERSION)
-            self._send(200, json.dumps({"ready": True, "vectors": count, "device": DEVICE,
-                                       "embeddingModelId": EMBEDDING_MODEL_ID,
-                                       "embeddingVersion": EMBEDDING_VERSION}), "application/json")
+            self._send(200, json.dumps({
+                "ready": True, "vectors": count, "device": DEVICE,
+                "embeddingModelId": EMBEDDING_MODEL_ID,
+                "embeddingVersion": EMBEDDING_VERSION,
+                "ui_enabled": UI_ENABLED
+            }), "application/json")
         else:
             self._send(404, "Not found", "text/plain; charset=utf-8")
 
@@ -184,20 +192,10 @@ class Handler(BaseHTTPRequestHandler):
                 raise ValueError("Enter a query between 1 and 500 characters")
             started = time.time()
             q = np.asarray(MODEL.get_text_embedding([query], use_tensor=False), dtype=np.float32).reshape(-1)
-            if q.size != 512 or not np.isfinite(q).all():
-                raise ValueError("The model returned an invalid query embedding")
-            norm = np.linalg.norm(q)
-            if norm == 0:
-                raise ValueError("The model returned an empty vector")
-            q /= norm
             vectors, paths = STORE.snapshot(EMBEDDING_MODEL_ID, EMBEDDING_VERSION)
-            if not paths:
-                matches = []
-            else:
-                scores = vectors @ q
-                top = np.argsort(scores)[-10:][::-1]
-                matches = [{"rank": n + 1, "score": float(scores[int(i)]), "path": paths[int(i)]}
-                           for n, i in enumerate(top)]
+            ranked = rank_vectors(vectors, q, limit=10)
+            matches = [{"rank": rank, "score": score, "path": paths[index]}
+                       for rank, (index, score) in enumerate(ranked, 1)]
             result = {"query": query, "seconds": round(time.time() - started, 2), "results": matches}
             self._send(200, json.dumps(result, ensure_ascii=True), "application/json; charset=utf-8")
         except ValueError as exc:
