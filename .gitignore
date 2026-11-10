@@ -1,4 +1,4 @@
-﻿.idea/
+.idea/
 __pycache__/
 *.py[cod]
 .venv/
@@ -15,3 +15,8 @@ clap-embeddings/
 *.npz
 *.pt
 *.pth
+
+# SQLite runtime database and write-ahead log.
+*.db
+*.db-wal
+*.db-shm

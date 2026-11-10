@@ -10,7 +10,7 @@ WORKDIR /search
 COPY requirements.txt /search/requirements.txt
 RUN pip install --no-cache-dir -r /search/requirements.txt
 
-COPY server.py search_core.py /search/
+COPY server.py search_core.py embedding_store.py /search/
 
 ENV HF_HOME=/models/huggingface \
     PYTHONUNBUFFERED=1 \
