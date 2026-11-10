@@ -162,10 +162,10 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = urlparse(self.path).path
-        if path not in ("/search", "/internal/v1/embeddings"):
+        if path not in ("/search", "/internal/v1/embeddings", "/internal/v1/embeddings/delete"):
             self._send(404, json.dumps({"error": "Not found"}), "application/json")
             return
-        if path == "/internal/v1/embeddings":
+        if path.startswith("/internal/"):
             if not INTERNAL_TOKEN:
                 self._send(503, json.dumps({"error": "Embedding ingestion is not configured"}), "application/json")
                 return
@@ -184,6 +184,14 @@ class Handler(BaseHTTPRequestHandler):
                 raise ValueError("JSON object required")
             if path == "/internal/v1/embeddings":
                 result = STORE.upsert(payload, EMBEDDING_MODEL_ID, EMBEDDING_VERSION)
+                self._send(202, json.dumps({"accepted": True, **result}), "application/json; charset=utf-8")
+                return
+            if path == "/internal/v1/embeddings/delete":
+                result = STORE.delete(
+                    payload.get("path"),
+                    payload.get("expectedSizeBytes"),
+                    payload.get("expectedLastModifiedUtc"),
+                )
                 self._send(202, json.dumps({"accepted": True, **result}), "application/json; charset=utf-8")
                 return
 
