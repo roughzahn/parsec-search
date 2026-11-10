@@ -19,8 +19,8 @@ services:
       PARSEC_SEARCH_EMBEDDING_VERSION: ${PARSEC_SEARCH_EMBEDDING_VERSION:-1}
       PARSEC_GATEWAY_BASE_URL: ${PARSEC_GATEWAY_BASE_URL:-http://127.0.0.1:8766}
     volumes:
-      - "${PARSEC_SEARCH_DATA_PATH:-C:/music-ai/search-data}:/data"
-      - "${PARSEC_SEARCH_MODEL_PATH:-C:/music-ai/model-cache}:/models"
+      - "${PARSEC_SEARCH_DATA_PATH:-C:/parsec/search-data}:/data"
+      - "${PARSEC_SEARCH_MODEL_PATH:-C:/parsec/models}:/models"
     networks:
       - music-ai-network
 
