@@ -55,6 +55,34 @@ class EmbeddingStoreTests(unittest.TestCase):
         vectors, _ = self.store.snapshot(MODEL_ID, 1)
         np.testing.assert_allclose(vectors[0], np.full(512, 1 / np.sqrt(512)), rtol=1e-5)
 
+    def test_delete_removes_matching_revision_and_refreshes_snapshot(self):
+        self.store.upsert(make_result(), MODEL_ID, 1)
+        result = self.store.delete(
+            "Artist/Album/track.flac", 12345, "2026-11-09T12:00:00Z"
+        )
+        self.assertTrue(result["deleted"])
+        vectors, paths = self.store.snapshot(MODEL_ID, 1)
+        self.assertEqual(paths, [])
+        self.assertEqual(vectors.shape, (0, 512))
+
+    def test_delete_does_not_remove_a_newer_revision(self):
+        self.store.upsert(make_result(size=54321), MODEL_ID, 1)
+        result = self.store.delete(
+            "Artist/Album/track.flac", 12345, "2026-11-09T12:00:00Z"
+        )
+        self.assertFalse(result["deleted"])
+        self.assertEqual(self.store.count(MODEL_ID, 1), 1)
+
+    def test_delete_can_remove_legacy_embedding_without_revision_metadata(self):
+        with self.store._connect() as connection:
+            connection.execute("""
+                INSERT INTO embeddings(path, model_id, embedding_version, dimensions, vector, updated_at)
+                VALUES(?, ?, 1, 512, ?, ?)
+            """, ("Legacy/track.flac", MODEL_ID, np.ones(512, dtype=np.float32).tobytes(), "now"))
+        result = self.store.delete("Legacy/track.flac", 100, "2026-11-09T12:00:00Z")
+        self.assertTrue(result["deleted"])
+        self.assertEqual(self.store.count(MODEL_ID, 1), 0)
+
     def test_rejects_wrong_model_and_invalid_vector(self):
         payload = make_result()
         payload["modelId"] = "other-model"

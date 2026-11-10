@@ -43,8 +43,8 @@ The repository contains application code and deployment configuration only. Runt
 
 | Container path | Purpose | Windows development default | Linux/vServer example |
 |---|---|---|---|
-| `/data` | `embeddings.db` (SQLite; legacy NPZ imported once) | `C:\music-ai\search-data` | `/opt/parsec-search/data` |
-| `/models` | CLAP checkpoint and Hugging Face cache | `C:\music-ai\model-cache` | `/opt/parsec-search/models` |
+| `/data` | `embeddings.db` (SQLite; legacy NPZ imported once) | `C:\parsec\search-data` | `/opt/parsec-search/data` |
+| `/models` | CLAP checkpoint and Hugging Face cache | `C:\parsec\models` | `/opt/parsec-search/models` |
 
 The server stores each normalized 512-dimensional embedding in `/data/embeddings.db` and loads an immutable NumPy matrix into memory for fast cosine search. The database is the durable source of truth; the in-memory matrix is refreshed after ingestion. On the first start only, an existing `/data/embedding-index.npz` is imported automatically. The CLAP checkpoint is loaded from `/models/630k-audioset-best.pt`. Data and model directories can be overridden with `PARSEC_SEARCH_DATA_DIR` and `PARSEC_SEARCH_MODEL_DIR` inside the container.
 
@@ -78,6 +78,15 @@ Stop the Windows development deployment:
 
 `POST /internal/v1/embeddings` is an internal, authenticated endpoint. It accepts the completed worker result (model ID, embedding version, 512 float values and source audio metadata) with `Authorization: Bearer <PARSEC_SEARCH_INTERNAL_TOKEN>`. The endpoint validates the model/version, vector dimensions, finite values and relative source path, then performs an idempotent upsert keyed by music path. The stored vector is normalized before persistence. A successful write returns HTTP 202. The active in-memory matrix is refreshed lazily on the next search request, so a batch of worker completions does not rebuild it once per track.
 
+## Embedding deletion
+
+POST /internal/v1/embeddings/delete is an internal, authenticated endpoint. It accepts a relative music path and the size/modification timestamp of the source revision:
+
+~~~json
+{"path":"Artist/Album/track.flac","expectedSizeBytes":12345,"expectedLastModifiedUtc":"2026-11-09T12:00:00Z"}
+~~~
+
+Search removes the embedding only if it still represents that source revision (or if it came from the legacy NPZ import and has no revision metadata). This prevents a delayed deletion from removing a newer version of a track. The in-memory search snapshot is refreshed on the next query. Repeated deletion requests are safe.
 ## Legacy index migration
 
 The old NPZ file is supported as a one-time migration source only. A newly initialized, empty database imports it automatically. Uploading a replacement NPZ does not overwrite an existing database. To deliberately rebuild from a new legacy NPZ, stop the service, make a verified backup of `embeddings.db`, remove the database and its `-wal`/`-shm` companions, replace the NPZ, then start the service to trigger the one-time import. Do not do this for normal worker updates; use the ingestion API instead.

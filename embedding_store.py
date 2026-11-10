@@ -149,6 +149,33 @@ class EmbeddingStore:
             self._dirty = True
         return {"path": path, "modelId": model_id, "embeddingVersion": version, "updatedAt": now}
 
+    def delete(self, path: str, expected_size_bytes: int | None, expected_last_modified_utc: str | None):
+        if not isinstance(path, str) or not path.strip() or path.startswith(("/", "\\")):
+            raise ValueError("audio.path must be a non-empty relative music path")
+        normalized_path = path.replace("\\", "/")
+        parsed_path = PurePosixPath(normalized_path)
+        if parsed_path.is_absolute() or ".." in parsed_path.parts or ":" in normalized_path:
+            raise ValueError("audio.path must not escape the music root")
+        if expected_size_bytes is not None and (
+            not isinstance(expected_size_bytes, int) or isinstance(expected_size_bytes, bool) or expected_size_bytes < 0
+        ):
+            raise ValueError("expectedSizeBytes must be a non-negative integer or null")
+        if expected_last_modified_utc is not None and not isinstance(expected_last_modified_utc, str):
+            raise ValueError("expectedLastModifiedUtc must be a string or null")
+
+        with self._lock, self._connect() as connection:
+            cursor = connection.execute("""
+                DELETE FROM embeddings
+                WHERE path=? AND (
+                    (size_bytes IS ? AND last_modified_utc IS ?)
+                    OR (size_bytes IS NULL AND last_modified_utc IS NULL)
+                )
+            """, (path, expected_size_bytes, expected_last_modified_utc))
+            deleted = cursor.rowcount > 0
+            if deleted:
+                self._dirty = True
+        return {"path": path, "deleted": deleted}
+
     def refresh(self, model_id: str, embedding_version: int):
         with self._lock:
             if not self._dirty:
