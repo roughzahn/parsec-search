@@ -4,19 +4,6 @@ from __future__ import annotations
 import numpy as np
 
 
-def ui_enabled(value: str | None) -> bool:
-    """Interpret the UI feature flag and reject ambiguous configuration."""
-    if value is None:
-        return True
-
-    normalized = value.strip().lower()
-    if normalized in {"1", "true", "yes", "on", "enabled"}:
-        return True
-    if normalized in {"0", "false", "no", "off", "disabled"}:
-        return False
-    raise ValueError("PARSEC_SEARCH_UI_ENABLED must be a boolean value")
-
-
 def rank_vectors(vectors: np.ndarray, query_embedding: np.ndarray, limit: int = 10) -> list[tuple[int, float]]:
     """Return (row index, cosine score) pairs, highest score first."""
     matrix = np.asarray(vectors, dtype=np.float32)

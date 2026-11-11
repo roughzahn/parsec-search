@@ -4,7 +4,6 @@ AI-powered semantic music search service used by `parsec-media-gateway`.
 
 ## Responsibilities
 
-- Browser UI: `GET /`
 - Search API: `POST /search`
 - Internal embedding ingestion: `POST /internal/v1/embeddings` (Bearer token)
 - Readiness endpoint: `GET /health`
@@ -30,12 +29,6 @@ The response remains compatible with the gateway integration:
   ]
 }
 ~~~
-
-## Browser playback
-
-The browser UI uses the public Parsec Media Gateway API for searches and playback. Search results contain opaque track IDs; the UI requests a short-lived stream ticket before playing a track in the built-in audio player. The browser never receives NAS filesystem paths.
-
-The gateway address is configured with `PARSEC_GATEWAY_BASE_URL` (Windows development default: `http://127.0.0.1:8766`). The gateway must allow the UI origin through `PARSEC_SEARCH_UI_ORIGINS` (default: `http://127.0.0.1:8765,http://localhost:8765`).
 
 ## Runtime data and Docker volumes
 
@@ -96,7 +89,7 @@ The SQLite database is not stored in the image or in the Git repository. No data
 ## Endpoints
 
 - Container endpoint for the gateway: `http://parsec-search:8000`
-- Local browser endpoint: `http://127.0.0.1:8765`
+- Local API endpoint (loopback only): `http://127.0.0.1:8765`
 - Container port: `8000`
 - Host port: `8765` (bound to loopback only)
 
@@ -116,4 +109,4 @@ Pull requests run the GitHub Actions workflow in `.github/workflows/ci.yml`. It 
 
 Stable releases are created manually from the GitHub Actions tab using `Release`. Choose `major`, `minor` or `patch`; the workflow calculates the next semantic version and publishes an immutable version tag to GHCR. Deployments must pin the exact version; no mutable `latest` or `stable` tag is published.
 
-The Docker image disables the browser UI by default (`PARSEC_SEARCH_UI_ENABLED=false`). The local `compose.yaml` enables it for Windows development; production deployments should keep it disabled. With the UI disabled, `GET /` returns 404 while `/search` and `/health` remain available.
+The Search service is API-only. It does not serve a browser UI; the separate `parsec-admin-tool` project provides the human-facing interface. `GET /` returns 404 while `/search` and `/health` remain available.
