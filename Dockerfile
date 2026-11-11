@@ -13,8 +13,7 @@ RUN pip install --no-cache-dir -r /search/requirements.txt
 COPY server.py search_core.py embedding_store.py /search/
 
 ENV HF_HOME=/models/huggingface \
-    PYTHONUNBUFFERED=1 \
-    PARSEC_SEARCH_UI_ENABLED=false
+    PYTHONUNBUFFERED=1
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=300s --retries=3 \

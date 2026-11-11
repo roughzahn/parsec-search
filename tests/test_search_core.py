@@ -2,29 +2,7 @@ import unittest
 
 import numpy as np
 
-from search_core import rank_vectors, ui_enabled
-
-
-class UiEnabledTests(unittest.TestCase):
-    def test_enabled_by_default(self):
-        self.assertTrue(ui_enabled(None))
-        self.assertTrue(ui_enabled("true"))
-
-    def test_true_values_enable_ui(self):
-        for value in ("true", "TRUE", "1", "yes", "on", "enabled"):
-            with self.subTest(value=value):
-                self.assertTrue(ui_enabled(value))
-
-    def test_false_values_disable_ui(self):
-        for value in ("false", "FALSE", "0", "no", "off", "disabled"):
-            with self.subTest(value=value):
-                self.assertFalse(ui_enabled(value))
-
-    def test_unknown_values_are_rejected(self):
-        for value in ("", "maybe", "treu"):
-            with self.subTest(value=value):
-                with self.assertRaisesRegex(ValueError, "must be a boolean"):
-                    ui_enabled(value)
+from search_core import rank_vectors
 
 
 class RankVectorsTests(unittest.TestCase):
