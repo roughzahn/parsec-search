@@ -1,0 +1,57 @@
+name: Promote stable image tag
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Existing Search release version to promote"
+        required: true
+        default: "0.2.1"
+        type: string
+
+permissions:
+  packages: write
+
+concurrency:
+  group: parsec-search-stable-promotion
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    name: Promote existing Search release to stable
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require main branch and validate version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/main" || { echo "Promotion may only run from main."; exit 1; }
+          [[ "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || {
+            echo "Version must be stable semantic version, e.g. 0.2.1"
+            exit 1
+          }
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify source manifest and promote
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY}"
+          docker buildx imagetools inspect "$IMAGE:$VERSION"
+          docker buildx imagetools create --tag "$IMAGE:stable" "$IMAGE:$VERSION"
+          {
+            echo "### Stable tag promoted"
+            echo
+            echo "- $IMAGE:$VERSION -> $IMAGE:stable"
+          } >> "$GITHUB_STEP_SUMMARY"
