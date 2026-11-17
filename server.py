@@ -21,6 +21,7 @@ PORT = int(os.environ.get("PARSEC_SEARCH_PORT", "8000"))
 INTERNAL_TOKEN = os.environ.get("PARSEC_SEARCH_INTERNAL_TOKEN", "").strip()
 EMBEDDING_MODEL_ID = os.environ.get("PARSEC_SEARCH_EMBEDDING_MODEL_ID", "laion-clap-630k-audioset-v1")
 EMBEDDING_VERSION = int(os.environ.get("PARSEC_SEARCH_EMBEDDING_VERSION", "1"))
+SOFTWARE_VERSION = os.environ.get("PARSEC_SOFTWARE_VERSION", "dev").strip() or "dev"
 
 if not os.path.isfile(CHECKPOINT):
     raise FileNotFoundError("CLAP checkpoint not found: %s (set PARSEC_SEARCH_MODEL_DIR to the model directory)" % CHECKPOINT)
@@ -51,7 +52,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/health":
             count = STORE.count(EMBEDDING_MODEL_ID, EMBEDDING_VERSION)
             self._send(200, json.dumps({
-                "ready": True, "vectors": count, "device": DEVICE,
+                "ready": True, "softwareVersion": SOFTWARE_VERSION, "vectors": count, "device": DEVICE,
                 "embeddingModelId": EMBEDDING_MODEL_ID,
                 "embeddingVersion": EMBEDDING_VERSION,
             }), "application/json")
