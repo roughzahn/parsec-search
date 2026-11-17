@@ -127,6 +127,8 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          build-args: |
+            PARSEC_SOFTWARE_VERSION=${{ steps.version.outputs.version }}
           push: true
           tags: |
             ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}
