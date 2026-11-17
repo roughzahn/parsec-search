@@ -7,8 +7,8 @@ RUN apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata \
     && rm -rf /var/lib/apt/lists/*
 
-LABEL org.opencontainers.image.source="https://github.com/roughzahn/parsec-search" \\
-      org.opencontainers.image.version="${PARSEC_SOFTWARE_VERSION}"
+LABEL org.opencontainers.image.source="https://github.com/roughzahn/parsec-search"
+LABEL org.opencontainers.image.version="${PARSEC_SOFTWARE_VERSION}"
 
 WORKDIR /search
 COPY requirements.txt /search/requirements.txt
