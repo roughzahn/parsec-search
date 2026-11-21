@@ -290,11 +290,11 @@ class EmbeddingStore:
             SELECT path, title, artist, album, album_artist, genre, year, track_number,
                    disc_number, duration_seconds, metadata_hash
               FROM library_metadata
-             WHERE title_folded LIKE ? ESCAPE '\'
-                OR artist_folded LIKE ? ESCAPE '\'
-                OR album_folded LIKE ? ESCAPE '\'
-                OR album_artist_folded LIKE ? ESCAPE '\'
-                OR genre_folded LIKE ? ESCAPE '\'
+             WHERE title_folded LIKE ? ESCAPE char(92)
+                OR artist_folded LIKE ? ESCAPE char(92)
+                OR album_folded LIKE ? ESCAPE char(92)
+                OR album_artist_folded LIKE ? ESCAPE char(92)
+                OR genre_folded LIKE ? ESCAPE char(92)
              ORDER BY CASE
                  WHEN title_folded=? OR artist_folded=? OR album_folded=?
                    OR album_artist_folded=? OR genre_folded=? THEN 0 ELSE 1 END,
