@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from search_core import rank_vectors
+from search_core import rank_similar_tracks, rank_vectors
 
 
 class RankVectorsTests(unittest.TestCase):
@@ -41,6 +41,30 @@ class RankVectorsTests(unittest.TestCase):
 
     def test_empty_index_returns_no_results(self):
         self.assertEqual(rank_vectors(np.empty((0, 3)), np.ones(3)), [])
+
+    def test_similar_tracks_excludes_source_and_orders_deterministically(self):
+        vectors = np.asarray([
+            [1.0, 0.0],
+            [0.8, 0.6],
+            [0.8, 0.6],
+            [0.0, 1.0],
+        ], dtype=np.float32)
+        paths = ["A/source.flac", "B/second.flac", "A/first.flac", "C/other.flac"]
+
+        result = rank_similar_tracks(vectors, paths, "A/source.flac", limit=3)
+
+        self.assertEqual([paths[index] for index, _ in result], [
+            "A/first.flac", "B/second.flac", "C/other.flac"
+        ])
+        self.assertAlmostEqual(result[0][1], 0.8, places=6)
+
+    def test_similar_tracks_rejects_unknown_source(self):
+        with self.assertRaises(KeyError):
+            rank_similar_tracks(np.eye(2, dtype=np.float32), ["a.flac", "b.flac"], "missing.flac")
+
+    def test_similar_tracks_rejects_invalid_limit(self):
+        with self.assertRaisesRegex(ValueError, "positive"):
+            rank_similar_tracks(np.eye(2, dtype=np.float32), ["a.flac", "b.flac"], "a.flac", 0)
 
 
 if __name__ == "__main__":

@@ -73,6 +73,20 @@ Stop the Windows development deployment:
 
 `POST /internal/v1/embeddings` is an internal, authenticated endpoint. It accepts the completed worker result (model ID, embedding version, 512 float values and source audio metadata) with `Authorization: Bearer <PARSEC_SEARCH_INTERNAL_TOKEN>`. The endpoint validates the model/version, vector dimensions, finite values and relative source path, then performs an idempotent upsert keyed by music path. The stored vector is normalized before persistence. A successful write returns HTTP 202. The active in-memory matrix is refreshed lazily on the next search request, so a batch of worker completions does not rebuild it once per track.
 
+## Similar-track lookup
+
+`POST /internal/v1/similar` finds the nearest tracks to an already indexed source track using its stored audio embedding. It is protected by the same `PARSEC_SEARCH_INTERNAL_TOKEN` bearer authentication as embedding ingestion and is intended for internal Gateway use only.
+
+Request:
+
+~~~json
+{"path":"Artist/Album/source.flac","limit":10}
+~~~
+
+The relative path must exactly match an indexed library path. The optional limit defaults to 10 and is restricted to 1–50. The source track is excluded from results; ties are resolved by relative path for deterministic ordering. An unknown or unindexed source returns HTTP 404, invalid input returns HTTP 400, and the response contains rank, cosine similarity score and relative path. No new model or reindex is required.
+
+This endpoint returns paths only. It does not provide title, artist or album metadata; those fields are not yet part of the Audio Node inventory or Search embedding schema.
+
 ## Embedding deletion
 
 POST /internal/v1/embeddings/delete is an internal, authenticated endpoint. It accepts a relative music path and the size/modification timestamp of the source revision:

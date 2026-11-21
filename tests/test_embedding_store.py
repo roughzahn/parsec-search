@@ -83,6 +83,29 @@ class EmbeddingStoreTests(unittest.TestCase):
         self.assertTrue(result["deleted"])
         self.assertEqual(self.store.count(MODEL_ID, 1), 0)
 
+    def test_similar_returns_other_tracks_from_persisted_vectors(self):
+        source = np.zeros(512, dtype=np.float32)
+        source[0] = 1.0
+        close = np.zeros(512, dtype=np.float32)
+        close[0] = 0.9
+        close[1] = 0.1
+        far = np.zeros(512, dtype=np.float32)
+        far[1] = 1.0
+        self.store.upsert(make_result(path="A/source.flac", vector=source), MODEL_ID, 1)
+        self.store.upsert(make_result(path="B/close.flac", vector=close), MODEL_ID, 1)
+        self.store.upsert(make_result(path="C/far.flac", vector=far), MODEL_ID, 1)
+
+        result = self.store.similar("A/source.flac", MODEL_ID, 1, 5)
+
+        self.assertEqual([self.store.snapshot(MODEL_ID, 1)[1][index] for index, _ in result],
+                         ["B/close.flac", "C/far.flac"])
+
+    def test_similar_rejects_unknown_source_and_path_traversal(self):
+        with self.assertRaises(KeyError):
+            self.store.similar("missing.flac", MODEL_ID, 1)
+        with self.assertRaisesRegex(ValueError, "escape"):
+            self.store.similar("../outside.flac", MODEL_ID, 1)
+
     def test_rejects_wrong_model_and_invalid_vector(self):
         payload = make_result()
         payload["modelId"] = "other-model"
