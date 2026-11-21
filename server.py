@@ -124,6 +124,8 @@ class Handler(BaseHTTPRequestHandler):
                        for rank, (index, score) in enumerate(ranked, 1)]
             result = {"query": query, "seconds": round(time.time() - started, 2), "results": matches}
             self._send(200, json.dumps(result, ensure_ascii=True), "application/json; charset=utf-8")
+        except KeyError:
+            self._send(404, json.dumps({"error": "Source track is not indexed"}, ensure_ascii=True), "application/json; charset=utf-8")
         except ValueError as exc:
             self._send(400, json.dumps({"error": str(exc)}, ensure_ascii=True), "application/json; charset=utf-8")
         except Exception as exc:
