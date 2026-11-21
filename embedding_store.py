@@ -203,9 +203,9 @@ class EmbeddingStore:
 
     def similar(self, path: str, model_id: str, embedding_version: int, limit: int = 10):
         """Find nearest indexed tracks for a known relative music path."""
-        if not isinstance(path, str) or not path.strip() or path.startswith(("/", "\\\\")):
+        if not isinstance(path, str) or not path.strip() or path.startswith(("/", "\\")):
             raise ValueError("path must be a non-empty relative music path")
-        normalized_path = path.replace("\\\\", "/")
+        normalized_path = path.replace("\\", "/")
         parsed_path = PurePosixPath(normalized_path)
         if parsed_path.is_absolute() or ".." in parsed_path.parts or ":" in normalized_path:
             raise ValueError("path must not escape the music root")
