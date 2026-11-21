@@ -204,11 +204,11 @@ class EmbeddingStore:
 
     @staticmethod
     def _normalize_library_path(path: str) -> str:
-        if not isinstance(path, str) or not path.strip() or path.startswith(("/", "\\\\")):
+        if not isinstance(path, str) or not path.strip() or path.startswith(("/", "\\")):
             raise ValueError("path must be a non-empty relative music path")
-        normalized = path.replace("\\\\", "/").strip()
+        normalized = path.replace("\\", "/").strip()
         parsed = PurePosixPath(normalized)
-        if (parsed.is_absolute() or ":" in normalized or "\\\\" in normalized
+        if (parsed.is_absolute() or ":" in normalized or "\\" in normalized
                 or any(part in ("", ".", "..") for part in normalized.split("/"))):
             raise ValueError("path must not escape the music root")
         return normalized
@@ -284,17 +284,17 @@ class EmbeddingStore:
         if not isinstance(limit, int) or isinstance(limit, bool) or limit < 1 or limit > 50:
             raise ValueError("limit must be an integer between 1 and 50")
         folded = query.strip().casefold()
-        escaped = folded.replace("\\\\", "\\\\\\\\").replace("%", "\\\\%").replace("_", "\\\\_")
+        escaped = folded.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
         pattern = escaped + "%"
         sql = """
             SELECT path, title, artist, album, album_artist, genre, year, track_number,
                    disc_number, duration_seconds, metadata_hash
               FROM library_metadata
-             WHERE title_folded LIKE ? ESCAPE '\\\\'
-                OR artist_folded LIKE ? ESCAPE '\\\\'
-                OR album_folded LIKE ? ESCAPE '\\\\'
-                OR album_artist_folded LIKE ? ESCAPE '\\\\'
-                OR genre_folded LIKE ? ESCAPE '\\\\'
+             WHERE title_folded LIKE ? ESCAPE '\'
+                OR artist_folded LIKE ? ESCAPE '\'
+                OR album_folded LIKE ? ESCAPE '\'
+                OR album_artist_folded LIKE ? ESCAPE '\'
+                OR genre_folded LIKE ? ESCAPE '\'
              ORDER BY CASE
                  WHEN title_folded=? OR artist_folded=? OR album_folded=?
                    OR album_artist_folded=? OR genre_folded=? THEN 0 ELSE 1 END,
