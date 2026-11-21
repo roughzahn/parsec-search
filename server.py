@@ -61,7 +61,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = urlparse(self.path).path
-        if path not in ("/search", "/internal/v1/embeddings", "/internal/v1/embeddings/delete"):
+        if path not in ("/search", "/internal/v1/embeddings", "/internal/v1/embeddings/delete", "/internal/v1/similar"):
             self._send(404, json.dumps({"error": "Not found"}), "application/json")
             return
         if path.startswith("/internal/"):
@@ -92,6 +92,25 @@ class Handler(BaseHTTPRequestHandler):
                     payload.get("expectedLastModifiedUtc"),
                 )
                 self._send(202, json.dumps({"accepted": True, **result}), "application/json; charset=utf-8")
+                return
+
+            if path == "/internal/v1/similar":
+                source_path = payload.get("path")
+                limit = payload.get("limit", 10)
+                if not isinstance(limit, int) or isinstance(limit, bool) or limit < 1 or limit > 50:
+                    raise ValueError("limit must be between 1 and 50")
+                started = time.time()
+                ranked = STORE.similar(source_path, EMBEDDING_MODEL_ID, EMBEDDING_VERSION, limit)
+                vectors, paths = STORE.snapshot(EMBEDDING_MODEL_ID, EMBEDDING_VERSION)
+                result = {
+                    "sourcePath": source_path,
+                    "seconds": round(time.time() - started, 2),
+                    "results": [
+                        {"rank": rank, "score": score, "path": paths[index]}
+                        for rank, (index, score) in enumerate(ranked, 1)
+                    ],
+                }
+                self._send(200, json.dumps(result, ensure_ascii=True), "application/json; charset=utf-8")
                 return
 
             query = str(payload.get("query", "")).strip()
