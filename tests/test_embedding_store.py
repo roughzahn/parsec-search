@@ -162,7 +162,14 @@ class EmbeddingStoreTests(unittest.TestCase):
         matches = self.store.search_metadata("björ")
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0]["artist"], "Björk")
+        self.store.upsert_metadata({
+            "path": "Jazz/Blue Train/01.flac",
+            "title": "Blue Train",
+            "artist": "John Coltrane",
+            "album": "Blue Train",
+        })
         self.assertEqual(self.store.search_metadata("JÓG")[0]["title"], "Jóga")
+        self.assertEqual(self.store.search_metadata("Coltrane")[0]["artist"], "John Coltrane")
 
     def test_metadata_search_prioritizes_exact_matches_and_is_deterministic(self):
         self.store.upsert_metadata({
