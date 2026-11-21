@@ -317,7 +317,7 @@ class EmbeddingStore:
         if not isinstance(limit, int) or isinstance(limit, bool) or limit < 1 or limit > 50:
             raise ValueError("limit must be an integer between 1 and 50")
         folded = query.strip().casefold()
-        tokens = re.findall(r"\\w+", folded, flags=re.UNICODE)
+        tokens = re.findall(r"\w+", folded, flags=re.UNICODE)
         if not tokens:
             return []
         fts_query = " AND ".join('"' + token.replace('"', '""') + '"*' for token in tokens)
