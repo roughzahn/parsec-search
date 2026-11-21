@@ -55,18 +55,21 @@ class Handler(BaseHTTPRequestHandler):
                 "ready": True, "softwareVersion": SOFTWARE_VERSION, "vectors": count, "device": DEVICE,
                 "embeddingModelId": EMBEDDING_MODEL_ID,
                 "embeddingVersion": EMBEDDING_VERSION,
+                "metadataTracks": STORE.metadata_count(),
             }), "application/json")
         else:
             self._send(404, "Not found", "text/plain; charset=utf-8")
 
     def do_POST(self):
         path = urlparse(self.path).path
-        if path not in ("/search", "/internal/v1/embeddings", "/internal/v1/embeddings/delete", "/internal/v1/similar"):
+        if path not in ("/search", "/internal/v1/embeddings", "/internal/v1/embeddings/delete", "/internal/v1/similar",
+                        "/internal/v1/library/metadata", "/internal/v1/library/metadata/delete",
+                        "/internal/v1/library/metadata/search"):
             self._send(404, json.dumps({"error": "Not found"}), "application/json")
             return
         if path.startswith("/internal/"):
             if not INTERNAL_TOKEN:
-                self._send(503, json.dumps({"error": "Embedding ingestion is not configured"}), "application/json")
+                self._send(503, json.dumps({"error": "Internal ingestion is not configured"}), "application/json")
                 return
             supplied = self.headers.get("Authorization", "")
             expected = "Bearer " + INTERNAL_TOKEN
@@ -92,6 +95,23 @@ class Handler(BaseHTTPRequestHandler):
                     payload.get("expectedLastModifiedUtc"),
                 )
                 self._send(202, json.dumps({"accepted": True, **result}), "application/json; charset=utf-8")
+                return
+            if path == "/internal/v1/library/metadata":
+                result = STORE.upsert_metadata(payload)
+                self._send(202, json.dumps({"accepted": True, **result}, ensure_ascii=True),
+                           "application/json; charset=utf-8")
+                return
+            if path == "/internal/v1/library/metadata/delete":
+                result = STORE.delete_metadata(payload.get("path"))
+                self._send(202, json.dumps({"accepted": True, **result}, ensure_ascii=True),
+                           "application/json; charset=utf-8")
+                return
+            if path == "/internal/v1/library/metadata/search":
+                query = payload.get("query")
+                limit = payload.get("limit", 10)
+                matches = STORE.search_metadata(query, limit)
+                self._send(200, json.dumps({"query": query, "results": matches}, ensure_ascii=True),
+                           "application/json; charset=utf-8")
                 return
 
             if path == "/internal/v1/similar":
