@@ -69,7 +69,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path.startswith("/internal/"):
             if not INTERNAL_TOKEN:
-                self._send(503, json.dumps({"error": "Embedding ingestion is not configured"}), "application/json")
+                self._send(503, json.dumps({"error": "Internal ingestion is not configured"}), "application/json")
                 return
             supplied = self.headers.get("Authorization", "")
             expected = "Bearer " + INTERNAL_TOKEN
