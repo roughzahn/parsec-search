@@ -6,6 +6,8 @@ AI-powered semantic music search service used by `parsec-media-gateway`.
 
 - Search API: `POST /search`
 - Internal embedding ingestion: `POST /internal/v1/embeddings` (Bearer token)
+- Internal metadata catalog: `POST /internal/v1/library/metadata` and `/delete` (Bearer token)
+- Internal metadata lookup: `POST /internal/v1/library/metadata/search` (Bearer token)
 - Readiness endpoint: `GET /health`
 - Natural-language query embeddings with LAION-CLAP and cosine-similarity ranking.
 - Command-line index builder and search implementation in `search-cli.py`.
@@ -80,6 +82,36 @@ POST /internal/v1/embeddings/delete is an internal, authenticated endpoint. It a
 ~~~
 
 Search removes the embedding only if it still represents that source revision (or if it came from the legacy NPZ import and has no revision metadata). This prevents a delayed deletion from removing a newer version of a track. The in-memory search snapshot is refreshed on the next query. Repeated deletion requests are safe.
+## Embedded library metadata
+
+Gateway synchronizes real embedded tags independently from CLAP embeddings. Search stores them in the same durable SQLite database but in a separate `library_metadata` table, so metadata updates never require an embedding job and embedding deletion does not remove metadata.
+
+The internal endpoints use `Authorization: Bearer <PARSEC_SEARCH_INTERNAL_TOKEN>`:
+
+- `POST /internal/v1/library/metadata` — idempotent upsert keyed by normalized relative path.
+- `POST /internal/v1/library/metadata/delete` — idempotent delete by relative path.
+- `POST /internal/v1/library/metadata/search` — exact and prefix lookup across title, artist, album, album artist and genre.
+
+Metadata upsert example:
+
+~~~json
+{
+  "path": "Artist/Album/track.flac",
+  "title": "Track title",
+  "artist": "Artist",
+  "album": "Album",
+  "albumArtist": "Artist",
+  "genre": "Electronic",
+  "year": 2025,
+  "trackNumber": 1,
+  "discNumber": 1,
+  "durationSeconds": 212.5,
+  "metadataHash": "sha256-of-embedded-tags"
+}
+~~~
+
+All tag fields are nullable. Search preserves null values and never derives tags from paths, filenames, embeddings or semantic similarity. Metadata lookup accepts `{"query":"pink floyd","limit":10}`; it returns deterministic results with exact matches first, then case-folded prefix matches. Unicode case folding is applied to indexed search fields. Metadata upserts and deletes are independent of embedding rows and are safe to retry.
+
 ## Legacy index migration
 
 The old NPZ file is supported as a one-time migration source only. A newly initialized, empty database imports it automatically. Uploading a replacement NPZ does not overwrite an existing database. To deliberately rebuild from a new legacy NPZ, stop the service, make a verified backup of `embeddings.db`, remove the database and its `-wal`/`-shm` companions, replace the NPZ, then start the service to trigger the one-time import. Do not do this for normal worker updates; use the ingestion API instead.
