@@ -206,7 +206,7 @@ class EmbeddingStore:
     def _normalize_library_path(path: str) -> str:
         if not isinstance(path, str) or not path.strip() or path.startswith(("/", "\\")):
             raise ValueError("path must be a non-empty relative music path")
-        normalized = path.replace("\\", "/").strip()
+        normalized = path.replace("\\", "/")
         parsed = PurePosixPath(normalized)
         if (parsed.is_absolute() or ":" in normalized or "\\" in normalized
                 or any(part in ("", ".", "..") for part in normalized.split("/"))):
