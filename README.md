@@ -90,7 +90,7 @@ The internal endpoints use `Authorization: Bearer <PARSEC_SEARCH_INTERNAL_TOKEN>
 
 - `POST /internal/v1/library/metadata` — idempotent upsert keyed by normalized relative path.
 - `POST /internal/v1/library/metadata/delete` — idempotent delete by relative path.
-- `POST /internal/v1/library/metadata/search` — exact and prefix lookup across title, artist, album, album artist and genre.
+- `POST /internal/v1/library/metadata/search` — exact and token-prefix lookup across title, artist, album, album artist and genre.
 
 Metadata upsert example:
 
@@ -110,7 +110,7 @@ Metadata upsert example:
 }
 ~~~
 
-All tag fields are nullable. Search preserves null values and never derives tags from paths, filenames, embeddings or semantic similarity. Metadata lookup accepts `{"query":"pink floyd","limit":10}`; it returns deterministic results with exact matches first, then case-folded prefix matches. Unicode case folding is applied to indexed search fields. Metadata upserts and deletes are independent of embedding rows and are safe to retry.
+All tag fields are nullable. Search preserves null values and never derives tags from paths, filenames, embeddings or semantic similarity. Metadata lookup accepts `{"query":"pink floyd","limit":10}`; it returns deterministic results with exact matches first, then token-prefix matches anywhere in tag fields. SQLite FTS5 indexes the tag text with Unicode-aware tokenization and diacritic normalization. Metadata upserts and deletes are independent of embedding rows and are safe to retry.
 
 ## Legacy index migration
 
