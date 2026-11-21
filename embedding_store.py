@@ -201,6 +201,22 @@ class EmbeddingStore:
     def snapshot(self, model_id: str, embedding_version: int):
         return self.refresh(model_id, embedding_version)
 
+    def similar(self, path: str, model_id: str, embedding_version: int, limit: int = 10):
+        """Find nearest indexed tracks for a known relative music path."""
+        if not isinstance(path, str) or not path.strip() or path.startswith(("/", "\\\\")):
+            raise ValueError("path must be a non-empty relative music path")
+        normalized_path = path.replace("\\\\", "/")
+        parsed_path = PurePosixPath(normalized_path)
+        if parsed_path.is_absolute() or ".." in parsed_path.parts or ":" in normalized_path:
+            raise ValueError("path must not escape the music root")
+        if not isinstance(limit, int) or isinstance(limit, bool) or limit < 1 or limit > 50:
+            raise ValueError("limit must be between 1 and 50")
+
+        from search_core import rank_similar_tracks
+
+        vectors, paths = self.snapshot(model_id, embedding_version)
+        return rank_similar_tracks(vectors, paths, normalized_path, limit)
+
     def count(self, model_id: str, embedding_version: int) -> int:
         with self._connect() as connection:
             return connection.execute(
