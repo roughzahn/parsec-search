@@ -1,4 +1,5 @@
 import os
+import re
 import sqlite3
 import threading
 from contextlib import contextmanager
@@ -82,6 +83,38 @@ class EmbeddingStore:
             connection.execute("CREATE INDEX IF NOT EXISTS idx_library_metadata_album ON library_metadata(album_folded COLLATE NOCASE)")
             connection.execute("CREATE INDEX IF NOT EXISTS idx_library_metadata_album_artist ON library_metadata(album_artist_folded COLLATE NOCASE)")
             connection.execute("CREATE INDEX IF NOT EXISTS idx_library_metadata_genre ON library_metadata(genre_folded COLLATE NOCASE)")
+            connection.execute("""
+                CREATE VIRTUAL TABLE IF NOT EXISTS library_metadata_fts USING fts5(
+                    path UNINDEXED, title, artist, album, album_artist, genre,
+                    tokenize='unicode61 remove_diacritics 2'
+                )
+            """)
+            connection.execute("""
+                CREATE TRIGGER IF NOT EXISTS library_metadata_fts_insert
+                AFTER INSERT ON library_metadata BEGIN
+                    INSERT INTO library_metadata_fts(path, title, artist, album, album_artist, genre)
+                    VALUES(new.path, new.title, new.artist, new.album, new.album_artist, new.genre);
+                END
+            """)
+            connection.execute("""
+                CREATE TRIGGER IF NOT EXISTS library_metadata_fts_update
+                AFTER UPDATE ON library_metadata BEGIN
+                    DELETE FROM library_metadata_fts WHERE path=old.path;
+                    INSERT INTO library_metadata_fts(path, title, artist, album, album_artist, genre)
+                    VALUES(new.path, new.title, new.artist, new.album, new.album_artist, new.genre);
+                END
+            """)
+            connection.execute("""
+                CREATE TRIGGER IF NOT EXISTS library_metadata_fts_delete
+                AFTER DELETE ON library_metadata BEGIN
+                    DELETE FROM library_metadata_fts WHERE path=old.path;
+                END
+            """)
+            connection.execute("""
+                INSERT INTO library_metadata_fts(path, title, artist, album, album_artist, genre)
+                SELECT path, title, artist, album, album_artist, genre FROM library_metadata
+                WHERE path NOT IN (SELECT path FROM library_metadata_fts)
+            """)
             marker = connection.execute(
                 "SELECT value FROM search_metadata WHERE key='legacy_npz_imported'"
             ).fetchone()
@@ -284,27 +317,27 @@ class EmbeddingStore:
         if not isinstance(limit, int) or isinstance(limit, bool) or limit < 1 or limit > 50:
             raise ValueError("limit must be an integer between 1 and 50")
         folded = query.strip().casefold()
-        escaped = folded.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-        pattern = escaped + "%"
+        tokens = re.findall(r"\\w+", folded, flags=re.UNICODE)
+        if not tokens:
+            return []
+        fts_query = " AND ".join('"' + token.replace('"', '""') + '"*' for token in tokens)
         sql = """
-            SELECT path, title, artist, album, album_artist, genre, year, track_number,
-                   disc_number, duration_seconds, metadata_hash
-              FROM library_metadata
-             WHERE title_folded LIKE ? ESCAPE char(92)
-                OR artist_folded LIKE ? ESCAPE char(92)
-                OR album_folded LIKE ? ESCAPE char(92)
-                OR album_artist_folded LIKE ? ESCAPE char(92)
-                OR genre_folded LIKE ? ESCAPE char(92)
+            SELECT metadata.path, metadata.title, metadata.artist, metadata.album,
+                   metadata.album_artist, metadata.genre, metadata.year, metadata.track_number,
+                   metadata.disc_number, metadata.duration_seconds, metadata.metadata_hash
+              FROM library_metadata_fts
+              JOIN library_metadata AS metadata ON metadata.path=library_metadata_fts.path
+             WHERE library_metadata_fts MATCH ?
              ORDER BY CASE
-                 WHEN title_folded=? OR artist_folded=? OR album_folded=?
-                   OR album_artist_folded=? OR genre_folded=? THEN 0 ELSE 1 END,
-                 artist_folded, album_folded, disc_number, track_number, title_folded, path
+                 WHEN metadata.title_folded=? OR metadata.artist_folded=? OR metadata.album_folded=?
+                   OR metadata.album_artist_folded=? OR metadata.genre_folded=? THEN 0 ELSE 1 END,
+                 metadata.artist_folded, metadata.album_folded, metadata.disc_number,
+                 metadata.track_number, metadata.title_folded, metadata.path
              LIMIT ?
         """
         with self._connect() as connection:
             rows = connection.execute(sql, (
-                pattern, pattern, pattern, pattern, pattern,
-                folded, folded, folded, folded, folded, limit,
+                fts_query, folded, folded, folded, folded, folded, limit,
             )).fetchall()
         keys = ("path", "title", "artist", "album", "albumArtist", "genre", "year",
                 "trackNumber", "discNumber", "durationSeconds", "metadataHash")
