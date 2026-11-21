@@ -205,7 +205,7 @@ class EmbeddingStoreTests(unittest.TestCase):
         self.assertEqual(self.store.count(MODEL_ID, 1), 1)
 
     def test_metadata_delete_normalizes_windows_separators(self):
-        self.store.upsert_metadata({"path": "Artist\\\\Album\\\\track.flac", "title": "Track"})
+        self.store.upsert_metadata({"path": r"Artist\Album\track.flac", "title": "Track"})
         result = self.store.delete_metadata("Artist/Album/track.flac")
         self.assertTrue(result["deleted"])
 
