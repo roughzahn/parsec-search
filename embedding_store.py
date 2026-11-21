@@ -77,11 +77,11 @@ class EmbeddingStore:
                     updated_at TEXT NOT NULL
                 )
             """)
-            connection.execute("CREATE INDEX IF NOT EXISTS idx_library_metadata_title ON library_metadata(title_folded)")
-            connection.execute("CREATE INDEX IF NOT EXISTS idx_library_metadata_artist ON library_metadata(artist_folded)")
-            connection.execute("CREATE INDEX IF NOT EXISTS idx_library_metadata_album ON library_metadata(album_folded)")
-            connection.execute("CREATE INDEX IF NOT EXISTS idx_library_metadata_album_artist ON library_metadata(album_artist_folded)")
-            connection.execute("CREATE INDEX IF NOT EXISTS idx_library_metadata_genre ON library_metadata(genre_folded)")
+            connection.execute("CREATE INDEX IF NOT EXISTS idx_library_metadata_title ON library_metadata(title_folded COLLATE NOCASE)")
+            connection.execute("CREATE INDEX IF NOT EXISTS idx_library_metadata_artist ON library_metadata(artist_folded COLLATE NOCASE)")
+            connection.execute("CREATE INDEX IF NOT EXISTS idx_library_metadata_album ON library_metadata(album_folded COLLATE NOCASE)")
+            connection.execute("CREATE INDEX IF NOT EXISTS idx_library_metadata_album_artist ON library_metadata(album_artist_folded COLLATE NOCASE)")
+            connection.execute("CREATE INDEX IF NOT EXISTS idx_library_metadata_genre ON library_metadata(genre_folded COLLATE NOCASE)")
             marker = connection.execute(
                 "SELECT value FROM search_metadata WHERE key='legacy_npz_imported'"
             ).fetchone()
@@ -238,8 +238,8 @@ class EmbeddingStore:
         genre = self._metadata_text(payload, "genre", 500)
         metadata_hash = self._metadata_text(payload, "metadataHash", 128)
         year = self._metadata_integer(payload, "year", 9999)
-        track_number = self._metadata_integer(payload, "trackNumber", 100000)
-        disc_number = self._metadata_integer(payload, "discNumber", 100000)
+        track_number = self._metadata_integer(payload, "trackNumber", 2147483647)
+        disc_number = self._metadata_integer(payload, "discNumber", 2147483647)
         duration = payload.get("durationSeconds")
         if duration is not None and (
             isinstance(duration, bool) or not isinstance(duration, (int, float))
