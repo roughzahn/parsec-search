@@ -64,7 +64,7 @@ class Handler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if path not in ("/search", "/internal/v1/embeddings", "/internal/v1/embeddings/delete", "/internal/v1/similar",
                         "/internal/v1/library/metadata", "/internal/v1/library/metadata/delete",
-                        "/internal/v1/library/metadata/search"):
+                        "/internal/v1/library/metadata/search", "/internal/v1/library/metadata/by-paths"):
             self._send(404, json.dumps({"error": "Not found"}), "application/json")
             return
         if path.startswith("/internal/"):
@@ -111,6 +111,11 @@ class Handler(BaseHTTPRequestHandler):
                 limit = payload.get("limit", 10)
                 matches = STORE.search_metadata(query, limit)
                 self._send(200, json.dumps({"query": query, "results": matches}, ensure_ascii=True),
+                           "application/json; charset=utf-8")
+                return
+            if path == "/internal/v1/library/metadata/by-paths":
+                matches = STORE.get_metadata_by_paths(payload.get("paths"))
+                self._send(200, json.dumps({"results": matches}, ensure_ascii=True),
                            "application/json; charset=utf-8")
                 return
 

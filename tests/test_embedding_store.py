@@ -251,6 +251,30 @@ class EmbeddingStoreTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "title"):
             self.store.upsert_metadata({"path": "Artist/track.flac", "title": 123})
 
+    def test_metadata_lookup_by_paths_returns_semantic_matches_in_requested_order(self):
+        self.store.upsert_metadata({
+            "path": "Artist/One/track.flac", "title": "Pop Song", "artist": "Artist One"
+        })
+        self.store.upsert_metadata({
+            "path": "Artist/Two/track.flac", "title": "Jazz Song", "artist": "Artist Two"
+        })
+
+        matches = self.store.get_metadata_by_paths([
+            "Artist/Two/track.flac", "Missing/track.flac", r"Artist\One\track.flac"
+        ])
+
+        self.assertEqual([item["path"] for item in matches], [
+            "Artist/Two/track.flac", "Artist/One/track.flac"
+        ])
+        self.assertEqual(matches[0]["title"], "Jazz Song")
+        self.assertEqual(matches[1]["artist"], "Artist One")
+
+    def test_metadata_lookup_by_paths_validates_input(self):
+        for paths in (None, [], ["../outside.flac"], ["Artist/track.flac"] * 51):
+            with self.subTest(paths=paths):
+                with self.assertRaises(ValueError):
+                    self.store.get_metadata_by_paths(paths)
+
     def test_metadata_search_validates_query_and_limit(self):
         with self.assertRaises(ValueError):
             self.store.search_metadata("")
