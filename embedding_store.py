@@ -343,6 +343,27 @@ class EmbeddingStore:
                 "trackNumber", "discNumber", "durationSeconds", "metadataHash")
         return [dict(zip(keys, row)) for row in rows]
 
+    def get_metadata_by_paths(self, paths):
+        if not isinstance(paths, list) or not paths or len(paths) > 50:
+            raise ValueError("paths must contain between 1 and 50 music paths")
+        normalized_paths = []
+        for path in paths:
+            normalized = self._normalize_library_path(path)
+            if normalized not in normalized_paths:
+                normalized_paths.append(normalized)
+        placeholders = ",".join("?" for _ in normalized_paths)
+        sql = """
+            SELECT path, title, artist, album, album_artist, genre, year, track_number,
+                   disc_number, duration_seconds, metadata_hash
+              FROM library_metadata
+             WHERE path IN (""" + placeholders + ")"
+        with self._connect() as connection:
+            rows = connection.execute(sql, normalized_paths).fetchall()
+        keys = ("path", "title", "artist", "album", "albumArtist", "genre", "year",
+                "trackNumber", "discNumber", "durationSeconds", "metadataHash")
+        by_path = {row[0]: dict(zip(keys, row)) for row in rows}
+        return [by_path[path] for path in normalized_paths if path in by_path]
+
     def metadata_count(self) -> int:
         with self._connect() as connection:
             return connection.execute("SELECT COUNT(*) FROM library_metadata").fetchone()[0]
